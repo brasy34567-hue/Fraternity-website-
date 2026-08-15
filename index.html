@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,7 +46,7 @@
   signInAnonymously(auth).catch(function(e) { console.error('Anonymous sign-in failed:', e); });
 
   // Keys to sync
-  const KEYS = ['members','events','dues','transactions','budget','fines','prospects','announcements','messages','chores','maintenance','settings','perfHistory','nid','studyHours'];
+  const KEYS = ['members','events','dues','transactions','budget','fines','prospects','announcements','messages','chores','maintenance','settings','perfHistory','nid','studyHours','points','concessions'];
 
   // Listen for changes from Firebase and update local state + re-render
   KEYS.forEach(function(k) {
@@ -70,6 +69,8 @@
       else if (k === 'chores') { window.chores = val; }
       else if (k === 'maintenance') { window.maintenance = val; }
       else if (k === 'studyHours') { window.studyHours = val; }
+      else if (k === 'points') { window.points = val; }
+      else if (k === 'concessions') { window.concessions = val; }
       // Re-render current tab
       if (window.renderAll) window.renderAll();
       if (k === 'settings' && window.settings) {
@@ -325,9 +326,11 @@ textarea.inp{resize:vertical;min-height:70px}
     <div class="nav-item" onclick="go('finance',this)"><i class="ti ti-cash"></i><span>Finances</span></div>
     <div class="nav-item" onclick="go('recruit',this)"><i class="ti ti-user-plus"></i><span>Recruitment</span></div>
     <div class="nav-item" onclick="go('house',this)"><i class="ti ti-home"></i><span>House</span></div>
+    <div class="nav-item" onclick="go('concessions',this)"><i class="ti ti-shopping-cart"></i><span>Concessions</span></div>
     <div class="nav-sec">Accountability</div>
     <div class="nav-item" onclick="go('study',this)"><i class="ti ti-book"></i><span>Study Hours</span></div>
     <div class="nav-item" onclick="go('attendance',this)"><i class="ti ti-clipboard-check"></i><span>Attendance</span></div>
+    <div class="nav-item" onclick="go('points',this)"><i class="ti ti-star"></i><span>Points</span></div>
     <div class="nav-sec">Communication</div>
     <div class="nav-item" onclick="go('announce',this)"><i class="ti ti-speakerphone"></i><span>Announcements</span></div>
     <div class="nav-item" onclick="go('messages',this)"><i class="ti ti-message"></i><span>Messages</span></div>
@@ -425,6 +428,16 @@ textarea.inp{resize:vertical;min-height:70px}
         <div id="house-content"></div>
       </div>
 
+      <div class="panel" id="panel-concessions">
+        <div class="sg" id="conc-stats"></div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="setConcTab('upcoming',this)">Upcoming</button>
+          <button class="tab-btn" onclick="setConcTab('past',this)">Past</button>
+          <button class="tab-btn" onclick="setConcTab('all',this)">All</button>
+        </div>
+        <div id="conc-list"></div>
+      </div>
+
       <div class="panel" id="panel-study">
         <div class="sg" id="study-stats"></div>
         <div class="sb" style="margin-bottom:13px">
@@ -446,6 +459,16 @@ textarea.inp{resize:vertical;min-height:70px}
           <thead><tr><th>Member</th><th>Attended</th><th>Required Events</th><th>Rate</th><th>Status</th></tr></thead>
           <tbody id="att-overview-body"></tbody>
         </table></div>
+      </div>
+
+      <div class="panel" id="panel-points">
+        <div class="sg" id="points-stats"></div>
+        <div class="tw"><table>
+          <thead><tr><th>Member</th><th>From Events</th><th>From Study Hours</th><th>Manual Awards</th><th>Total Points</th></tr></thead>
+          <tbody id="points-body"></tbody>
+        </table></div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);margin:16px 0 10px">Recent point entries</div>
+        <div id="points-log"></div>
       </div>
 
       <div class="panel" id="panel-blast">
@@ -557,21 +580,25 @@ window.announcements=load('announcements',[]);
 window.messages=load('messages',{});
 window.chores=load('chores',[]);
 window.maintenance=load('maintenance',[]);
-window.settings=load('settings',{chapterName:'Chapter Manager',semester:'Fall 2026',gpaThreshold:2.5,fineAmount:25,studyMin:10});
+window.settings=load('settings',{chapterName:'Chapter Manager',semester:'Fall 2026',gpaThreshold:2.5,fineAmount:25,studyMin:10,pointsPerEvent:5,pointsPerStudyHour:1});
 window.studyHours=load('studyHours',[]);
 window.perfHistory=load('perfHistory',[]);
 window.nidVal=load('nid',300);
+window.points=load('points',[]);
+window.concessions=load('concessions',[]);
 // Shorthand references (these point to window.X)
 var members=window.members,events=window.events,dues=window.dues,transactions=window.transactions,
     budget=window.budget,fines=window.fines,prospects=window.prospects,announcements=window.announcements,
     messages=window.messages,chores=window.chores,maintenance=window.maintenance,
-    settings=window.settings,perfHistory=window.perfHistory,nidVal=window.nidVal,studyHours=window.studyHours;
+    settings=window.settings,perfHistory=window.perfHistory,nidVal=window.nidVal,studyHours=window.studyHours,
+    points=window.points,concessions=window.concessions;
 var curTab='dashboard';
 var evTab='upcoming';
 var calMonth=new Date().getMonth();
 var calYear=new Date().getFullYear();
 var finTab='dues';
 var houseTab='chores';
+var concTab='upcoming';
 var activeThread=null;
 var perfChart=null;
 var chartVis={attendance:true,dues:true,gpa:true,overall:true};
@@ -660,8 +687,8 @@ function gv(id){var el=document.getElementById(id);return el?el.value:'';}
 function gc(id){var el=document.getElementById(id);return el?el.checked:false;}
 
 // NAV
-var pageTitles={dashboard:'Dashboard',members:'Members',events:'Events',finance:'Finances',recruit:'Recruitment',house:'Chapter House',announce:'Announcements',messages:'Messages',study:'Study Hours',attendance:'Attendance Tracker',blast:'Message Blast'};
-var addLabels={members:'Add Member',events:'Add Event',finance:'Add Record',recruit:'Add Prospect',house:'Add Item',announce:'Post Announcement',study:'Log Hours'};
+var pageTitles={dashboard:'Dashboard',members:'Members',events:'Events',finance:'Finances',recruit:'Recruitment',house:'Chapter House',concessions:'Concession Schedule',announce:'Announcements',messages:'Messages',study:'Study Hours',attendance:'Attendance Tracker',points:'Points',blast:'Message Blast'};
+var addLabels={members:'Add Member',events:'Add Event',finance:'Add Record',recruit:'Add Prospect',house:'Add Item',concessions:'Add Shift',announce:'Post Announcement',study:'Log Hours',points:'Award Points'};
 function go(tab,el){
   curTab=tab;
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
@@ -684,12 +711,12 @@ function closeSidebar(){
   if(bd)bd.classList.remove('open');
 }
 function updateAddBtn(){
-  var show={members:canEdit(),events:canOfficer(),finance:canEdit(),recruit:canOfficer(),house:canOfficer(),announce:canOfficer(),study:true,attendance:false,blast:false};
+  var show={members:canEdit(),events:canOfficer(),finance:canEdit(),recruit:canOfficer(),house:canOfficer(),concessions:canOfficer(),announce:canOfficer(),study:true,attendance:false,points:canOfficer(),blast:false};
   document.getElementById('add-btn').style.display=(show[curTab])?'inline-flex':'none';
   document.getElementById('add-lbl').textContent=addLabels[curTab]||'Add';
 }
 function handleAdd(){
-  var h={members:addMemberModal,events:addEventModal,finance:addFinMenu,recruit:addProspectModal,house:addHouseMenu,announce:addAnnModal,study:addStudyModal};
+  var h={members:addMemberModal,events:addEventModal,finance:addFinMenu,recruit:addProspectModal,house:addHouseMenu,concessions:addShiftModal,announce:addAnnModal,study:addStudyModal,points:awardPointsModal};
   if(h[curTab])h[curTab]();
 }
 function renderAll(){
@@ -699,10 +726,12 @@ function renderAll(){
   else if(curTab==='finance')renderFinance();
   else if(curTab==='recruit')renderRecruit();
   else if(curTab==='house')renderHouse();
+  else if(curTab==='concessions')renderConcessions();
   else if(curTab==='announce')renderAnnounce();
   else if(curTab==='messages')renderMessages();
   else if(curTab==='study')renderStudy();
   else if(curTab==='attendance')renderAttendanceOverview();
+  else if(curTab==='points')renderPoints();
   else if(curTab==='blast')renderBlastPreview();
 }
 window.renderAll = renderAll;
@@ -1344,6 +1373,75 @@ function saveMaint(){maintenance.push({id:nid(),issue:gv('fmi')||'Issue',reporte
 function toggleMaint(id){var m=maintenance.find(function(x){return x.id===id;});if(m){m.resolved=!m.resolved;save('maintenance',maintenance);renderHouse();}}
 function deleteMaint(id){maintenance=maintenance.filter(function(x){return x.id!==id;});save('maintenance',maintenance);renderHouse();}
 
+// CONCESSIONS
+function setConcTab(t,el){concTab=t;document.querySelectorAll('#panel-concessions .tab-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderConcessions();}
+function renderConcessions(){
+  var upCount=concessions.filter(function(c){return isUpcoming(c.date);}).length;
+  var unassigned=concessions.filter(function(c){return isUpcoming(c.date)&&!c.memberId;}).length;
+  document.getElementById('conc-stats').innerHTML=
+    '<div class="sc"><div class="sl">Total shifts</div><div class="sv">'+concessions.length+'</div></div>'+
+    '<div class="sc"><div class="sl">Upcoming</div><div class="sv">'+upCount+'</div></div>'+
+    '<div class="sc"><div class="sl">Unassigned</div><div class="sv" style="color:'+(unassigned?'var(--red)':'inherit')+'">'+unassigned+'</div></div>';
+  var list=[].concat(concessions);
+  if(concTab==='upcoming')list=list.filter(function(c){return isUpcoming(c.date);});
+  else if(concTab==='past')list=list.filter(function(c){return !isUpcoming(c.date);});
+  if(concTab==='past')list.sort(function(a,b){return b.date.localeCompare(a.date);});
+  else list.sort(function(a,b){return a.date.localeCompare(b.date);});
+  var el=document.getElementById('conc-list');
+  if(!list.length){el.innerHTML='<div class="empty">No concession shifts scheduled</div>';return;}
+  el.innerHTML=list.map(function(c){
+    var f=fmtDate(c.date);
+    var m=members.find(function(x){return x.id===c.memberId;});
+    var cv=m?avColor(m.id||0):null;
+    var btns=canOfficer()?'<button class="btn btn-sm" onclick="editShiftModal('+c.id+')"><i class="ti ti-edit"></i></button>':'';
+    return '<div class="ev-card">'+
+      '<div class="ev-date"><div class="ev-month">'+f.month+'</div><div class="ev-day">'+f.day+'</div></div>'+
+      '<div class="ev-info">'+
+        '<div style="display:flex;align-items:center;gap:7px"><div class="ev-name">'+esc(c.shiftLabel||'Shift')+'</div>'+(!c.memberId?'<span class="badge b-unpaid" style="font-size:10px">Unassigned</span>':'')+'</div>'+
+        '<div class="ev-meta">'+(m?'<span class="rn"><span class="av" style="width:18px;height:18px;font-size:9px;background:'+cv[0]+';color:'+cv[1]+'">'+esc(m.initials||initials(m.name))+'</span>'+esc(m.name)+'</span>':'<span>No one assigned</span>')+(c.notes?'<span>'+esc(c.notes)+'</span>':'')+'</div>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">'+btns+'</div>'+
+      '</div>';
+  }).join('');
+}
+function addShiftModal(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Add concession shift',
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="fcsd" type="date" value="'+todayStr()+'"></div>'+
+    '<div class="fr"><label class="fl">Shift / time</label><input class="inp" id="fcsl" placeholder="e.g. 5-7 PM"></div></div>'+
+    '<div class="fr"><label class="fl">Assign to</label><select class="inp" id="fcsm"><option value="">— Unassigned —</option>'+active.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="fcsn" placeholder="Game, event, location..."></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveShift()">Add shift</button></div>'
+  );
+}
+function saveShift(){
+  var date=gv('fcsd');if(!date){showToast('Date required','error');return;}
+  var mid=gv('fcsm');
+  concessions.push({id:nid(),date:date,shiftLabel:gv('fcsl')||'Shift',memberId:mid?parseInt(mid):null,notes:gv('fcsn')});
+  save('concessions',concessions);closeModal();renderConcessions();
+}
+function editShiftModal(id){
+  var c=concessions.find(function(x){return x.id===id;});if(!c)return;
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Edit concession shift',
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="fcsd" type="date" value="'+c.date+'"></div>'+
+    '<div class="fr"><label class="fl">Shift / time</label><input class="inp" id="fcsl" value="'+esc(c.shiftLabel||'')+'"></div></div>'+
+    '<div class="fr"><label class="fl">Assign to</label><select class="inp" id="fcsm"><option value="">— Unassigned —</option>'+active.map(function(m){return '<option value="'+m.id+'"'+(c.memberId===m.id?' selected':'')+'>'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="fcsn" value="'+esc(c.notes||'')+'"></div>'+
+    '<div class="fa"><button class="btn btn-danger" onclick="deleteShift('+id+')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="updateShift('+id+')">Save</button></div>'
+  );
+}
+function updateShift(id){
+  var c=concessions.find(function(x){return x.id===id;});if(!c)return;
+  c.date=gv('fcsd')||c.date;c.shiftLabel=gv('fcsl');var mid=gv('fcsm');c.memberId=mid?parseInt(mid):null;c.notes=gv('fcsn');
+  save('concessions',concessions);closeModal();renderConcessions();
+}
+function deleteShift(id){
+  if(!confirm('Delete this shift?'))return;
+  concessions=concessions.filter(function(x){return x.id!==id;});
+  save('concessions',concessions);closeModal();renderConcessions();
+}
+
 // ANNOUNCEMENTS
 function renderAnnounce(){
   var list=[].concat(announcements).reverse();
@@ -1493,6 +1591,71 @@ function renderAttendanceOverview(){
   }).join('');
 }
 
+// POINTS
+function autoEventPoints(mid){
+  var reqEv=events.filter(function(e){return e.required&&!isUpcoming(e.date);});
+  var att=reqEv.filter(function(e){return (e.attendance||[]).indexOf(mid)>=0;}).length;
+  return att*(settings.pointsPerEvent||5);
+}
+function autoStudyPoints(mid){
+  var hrs=studyHours.filter(function(s){return s.memberId===mid;}).reduce(function(a,s){return a+s.hours;},0);
+  return Math.round(hrs*(settings.pointsPerStudyHour||1));
+}
+function manualPoints(mid){
+  return points.filter(function(p){return p.memberId===mid;}).reduce(function(a,p){return a+p.amount;},0);
+}
+function totalPoints(mid){
+  return autoEventPoints(mid)+autoStudyPoints(mid)+manualPoints(mid);
+}
+function renderPoints(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  var totals=active.map(function(m){return totalPoints(m.id);});
+  var top=active.length?active.reduce(function(best,m){return totalPoints(m.id)>totalPoints(best.id)?m:best;},active[0]):null;
+  var avg=totals.length?Math.round(totals.reduce(function(a,b){return a+b;},0)/totals.length):0;
+  document.getElementById('points-stats').innerHTML=
+    '<div class="sc"><div class="sl">Total point entries</div><div class="sv">'+points.length+'</div></div>'+
+    '<div class="sc"><div class="sl">Average points</div><div class="sv">'+avg+'</div></div>'+
+    '<div class="sc"><div class="sl">Top scorer</div><div class="sv" style="font-size:15px">'+(top?esc(top.name):'—')+'</div></div>'+
+    '<div class="sc"><div class="sl">Per event / study hr</div><div class="sv" style="font-size:15px">'+(settings.pointsPerEvent||5)+' / '+(settings.pointsPerStudyHour||1)+'</div></div>';
+  var sorted=[].concat(active).sort(function(a,b){return totalPoints(b.id)-totalPoints(a.id);});
+  var body=document.getElementById('points-body');
+  if(!sorted.length){body.innerHTML='<tr><td colspan="5" class="empty">No members</td></tr>';return;}
+  body.innerHTML=sorted.map(function(m){
+    var cv=avColor(m.id||0);
+    return '<tr><td><div class="rn"><div class="av" style="background:'+cv[0]+';color:'+cv[1]+'">'+esc(m.initials||initials(m.name))+'</div>'+esc(m.name)+'</div></td>'+
+      '<td>'+autoEventPoints(m.id)+'</td><td>'+autoStudyPoints(m.id)+'</td><td>'+manualPoints(m.id)+'</td>'+
+      '<td><strong>'+totalPoints(m.id)+'</strong></td></tr>';
+  }).join('');
+  var log=[].concat(points).reverse().slice(0,15);
+  document.getElementById('points-log').innerHTML=log.length?log.map(function(p){
+    var m=members.find(function(x){return x.id===p.memberId;});
+    var delBtn=canOfficer()?'<button class="btn btn-sm btn-danger" onclick="deletePointEntry('+p.id+')"><i class="ti ti-trash"></i></button>':'';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px"><div><strong>'+(m?esc(m.name):'Unknown')+'</strong> — '+esc(p.reason||'Manual award')+' <span style="color:var(--text2)">('+(p.date||'')+')</span></div><div style="display:flex;align-items:center;gap:8px"><span style="color:'+(p.amount>=0?'var(--green)':'var(--red)')+';font-weight:600">'+(p.amount>=0?'+':'')+p.amount+'</span>'+delBtn+'</div></div>';
+  }).join(''):'<div class="empty">No point entries yet</div>';
+}
+function awardPointsModal(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Award points',
+    '<div class="fr"><label class="fl">Member</label><select class="inp" id="fpm2">'+(active.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('')||'<option>No members</option>')+'</select></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Points (negative to deduct)</label><input class="inp" id="fpamt" type="number" value="5"></div>'+
+    '<div class="fr"><label class="fl">Date</label><input class="inp" id="fpdate" type="date" value="'+todayStr()+'"></div></div>'+
+    '<div class="fr"><label class="fl">Reason</label><input class="inp" id="fpreason" placeholder="e.g. Won intramurals, helped with rush"></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAwardPoints()">Award</button></div>'
+  );
+}
+function saveAwardPoints(){
+  var amt=parseFloat(gv('fpamt'));
+  if(isNaN(amt)||amt===0){showToast('Enter a non-zero point amount','error');return;}
+  points.push({id:nid(),memberId:parseInt(gv('fpm2')),amount:amt,reason:gv('fpreason')||'Manual award',date:gv('fpdate')||todayStr()});
+  save('points',points);closeModal();renderPoints();
+  showToast('Points awarded','success');
+}
+function deletePointEntry(id){
+  if(!confirm('Remove this point entry?'))return;
+  points=points.filter(function(x){return x.id!==id;});
+  save('points',points);renderPoints();
+}
+
 // MESSAGE BLAST
 function renderBlastPreview(){
   var type=document.getElementById('blast-type')?document.getElementById('blast-type').value:'meeting';
@@ -1560,6 +1723,8 @@ document.getElementById('sb-chapter').addEventListener('dblclick',function(){
     '<div class="fr"><label class="fl">Default fine amount ($)</label><input class="inp" id="sfa" type="number" value="'+(settings.fineAmount||25)+'"></div>'+
     '<div class="fr"><label class="fl">Study hours minimum (per semester)</label><input class="inp" id="sstudy" type="number" value="'+(settings.studyMin||10)+'"></div>'+
     '<div class="fr"><label class="fl">Chapter founding date (optional)</label><input class="inp" id="sfd" type="date" value="'+(settings.foundingDate||'')+'"></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Points per event attended</label><input class="inp" id="sppe" type="number" value="'+(settings.pointsPerEvent||5)+'"></div>'+
+    '<div class="fr"><label class="fl">Points per study hour</label><input class="inp" id="spph" type="number" value="'+(settings.pointsPerStudyHour||1)+'"></div></div>'+
     '<div style="font-size:12px;font-weight:600;color:var(--text2);margin:12px 0 8px">Add performance chart data point</div>'+
     '<div class="fr2"><div class="fr"><label class="fl">Label (e.g. "Sep")</label><input class="inp" id="spl" placeholder="Month"></div>'+
     '<div class="fr"><label class="fl">Attendance %</label><input class="inp" id="spa" type="number" value="80"></div></div>'+
@@ -1575,6 +1740,8 @@ function saveSettings(){
   settings.fineAmount=parseFloat(gv('sfa'))||25;
   settings.studyMin=parseInt(gv('sstudy'))||10;
   settings.foundingDate=gv('sfd')||settings.foundingDate||null;
+  settings.pointsPerEvent=parseFloat(gv('sppe'))||5;
+  settings.pointsPerStudyHour=parseFloat(gv('spph'))||1;
   var lbl=gv('spl');
   if(lbl){perfHistory.push({label:lbl,attendance:parseInt(gv('spa'))||80,dues:parseInt(gv('spd'))||70,gpa:parseFloat(gv('spg'))||3.3});save('perfHistory',perfHistory);}
   save('settings',settings);
@@ -1591,7 +1758,7 @@ function downloadFile(filename,content,mime){
   URL.revokeObjectURL(url);
 }
 function exportBackupJSON(){
-  var data={members:members,events:events,dues:dues,transactions:transactions,budget:budget,fines:fines,prospects:prospects,announcements:announcements,chores:chores,maintenance:maintenance,studyHours:studyHours,settings:settings};
+  var data={members:members,events:events,dues:dues,transactions:transactions,budget:budget,fines:fines,prospects:prospects,announcements:announcements,chores:chores,maintenance:maintenance,studyHours:studyHours,points:points,concessions:concessions,settings:settings};
   downloadFile((settings.chapterName||'chapter').replace(/[^a-z0-9]/gi,'-')+'-backup-'+todayStr()+'.json',JSON.stringify(data,null,2),'application/json');
 }
 function csvEscape(v){
