@@ -46,7 +46,7 @@
   signInAnonymously(auth).catch(function(e) { console.error('Anonymous sign-in failed:', e); });
 
   // Keys to sync
-  const KEYS = ['members','events','dues','transactions','budget','fines','prospects','announcements','messages','chores','maintenance','settings','perfHistory','nid','studyHours','points','concessions'];
+  const KEYS = ['members','events','dues','transactions','budget','fines','prospects','announcements','messages','chores','maintenance','settings','perfHistory','nid','studyHours','points','concessions','volunteers','soberDrivers','tkeWeek','nationalEvents','serviceHours','goals'];
 
   // Listen for changes from Firebase and update local state + re-render
   KEYS.forEach(function(k) {
@@ -71,6 +71,12 @@
       else if (k === 'studyHours') { window.studyHours = val; }
       else if (k === 'points') { window.points = val; }
       else if (k === 'concessions') { window.concessions = val; }
+      else if (k === 'volunteers') { window.volunteers = val; }
+      else if (k === 'soberDrivers') { window.soberDrivers = val; }
+      else if (k === 'tkeWeek') { window.tkeWeek = val; }
+      else if (k === 'nationalEvents') { window.nationalEvents = val; }
+      else if (k === 'serviceHours') { window.serviceHours = val; }
+      else if (k === 'goals') { window.goals = val; }
       // Re-render current tab
       if (window.renderAll) window.renderAll();
       if (k === 'settings' && window.settings) {
@@ -322,13 +328,19 @@ textarea.inp{resize:vertical;min-height:70px}
     <div class="nav-item active" onclick="go('dashboard',this)"><i class="ti ti-dashboard"></i><span>Dashboard</span></div>
     <div class="nav-item" onclick="go('members',this)"><i class="ti ti-users"></i><span>Members</span></div>
     <div class="nav-item" onclick="go('events',this)"><i class="ti ti-calendar-event"></i><span>Events</span></div>
+    <div class="nav-item" onclick="go('goals',this)"><i class="ti ti-target-arrow"></i><span>Goals</span></div>
     <div class="nav-sec">Operations</div>
     <div class="nav-item" onclick="go('finance',this)"><i class="ti ti-cash"></i><span>Finances</span></div>
     <div class="nav-item" onclick="go('recruit',this)"><i class="ti ti-user-plus"></i><span>Recruitment</span></div>
     <div class="nav-item" onclick="go('house',this)"><i class="ti ti-home"></i><span>House</span></div>
     <div class="nav-item" onclick="go('concessions',this)"><i class="ti ti-shopping-cart"></i><span>Concessions</span></div>
+    <div class="nav-item" onclick="go('volunteers',this)"><i class="ti ti-hand-stop"></i><span>Volunteers</span></div>
+    <div class="nav-item" onclick="go('sober',this)"><i class="ti ti-car"></i><span>Sober Drivers</span></div>
+    <div class="nav-item" onclick="go('tkeweek',this)"><i class="ti ti-heart"></i><span>TKE Week</span></div>
+    <div class="nav-item" onclick="go('natevents',this)"><i class="ti ti-plane"></i><span>National Events</span></div>
     <div class="nav-sec">Accountability</div>
     <div class="nav-item" onclick="go('study',this)"><i class="ti ti-book"></i><span>Study Hours</span></div>
+    <div class="nav-item" onclick="go('service',this)"><i class="ti ti-hand-heart"></i><span>Service Hours</span></div>
     <div class="nav-item" onclick="go('attendance',this)"><i class="ti ti-clipboard-check"></i><span>Attendance</span></div>
     <div class="nav-item" onclick="go('points',this)"><i class="ti ti-star"></i><span>Points</span></div>
     <div class="nav-sec">Communication</div>
@@ -399,6 +411,11 @@ textarea.inp{resize:vertical;min-height:70px}
         <div id="ev-list"></div>
       </div>
 
+      <div class="panel" id="panel-goals">
+        <div class="sg" id="goals-stats"></div>
+        <div id="goals-list"></div>
+      </div>
+
       <div class="panel" id="panel-finance">
         <div class="sg" id="fin-stats"></div>
         <input class="inp" style="max-width:280px;margin-bottom:10px" type="text" id="fin-search" placeholder="Search..." oninput="renderFinance()">
@@ -438,6 +455,36 @@ textarea.inp{resize:vertical;min-height:70px}
         <div id="conc-list"></div>
       </div>
 
+      <div class="panel" id="panel-volunteers">
+        <div class="sg" id="vol-stats"></div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="setVolTab('upcoming',this)">Upcoming</button>
+          <button class="tab-btn" onclick="setVolTab('past',this)">Past</button>
+          <button class="tab-btn" onclick="setVolTab('all',this)">All</button>
+        </div>
+        <div id="vol-list"></div>
+      </div>
+
+      <div class="panel" id="panel-sober">
+        <div class="sg" id="sober-stats"></div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="setSoberTab('upcoming',this)">Upcoming</button>
+          <button class="tab-btn" onclick="setSoberTab('past',this)">Past</button>
+          <button class="tab-btn" onclick="setSoberTab('all',this)">All</button>
+        </div>
+        <div id="sober-list"></div>
+      </div>
+
+      <div class="panel" id="panel-tkeweek">
+        <div class="sg" id="tkew-stats"></div>
+        <div id="tkew-list"></div>
+      </div>
+
+      <div class="panel" id="panel-natevents">
+        <div class="sg" id="ne-stats"></div>
+        <div id="ne-list"></div>
+      </div>
+
       <div class="panel" id="panel-study">
         <div class="sg" id="study-stats"></div>
         <div class="sb" style="margin-bottom:13px">
@@ -449,6 +496,14 @@ textarea.inp{resize:vertical;min-height:70px}
         <div class="tw"><table>
           <thead><tr><th>Member</th><th>Hours Logged</th><th>Min Required</th><th>Status</th><th></th></tr></thead>
           <tbody id="study-body"></tbody>
+        </table></div>
+      </div>
+
+      <div class="panel" id="panel-service">
+        <div class="sg" id="service-stats"></div>
+        <div class="tw"><table>
+          <thead><tr><th>Rank</th><th>Member</th><th>Service Hours</th></tr></thead>
+          <tbody id="service-body"></tbody>
         </table></div>
       </div>
 
@@ -586,12 +641,19 @@ window.perfHistory=load('perfHistory',[]);
 window.nidVal=load('nid',300);
 window.points=load('points',[]);
 window.concessions=load('concessions',[]);
+window.volunteers=load('volunteers',[]);
+window.soberDrivers=load('soberDrivers',[]);
+window.tkeWeek=load('tkeWeek',[]);
+window.nationalEvents=load('nationalEvents',[]);
+window.serviceHours=load('serviceHours',[]);
+window.goals=load('goals',[]);
 // Shorthand references (these point to window.X)
 var members=window.members,events=window.events,dues=window.dues,transactions=window.transactions,
     budget=window.budget,fines=window.fines,prospects=window.prospects,announcements=window.announcements,
     messages=window.messages,chores=window.chores,maintenance=window.maintenance,
     settings=window.settings,perfHistory=window.perfHistory,nidVal=window.nidVal,studyHours=window.studyHours,
-    points=window.points,concessions=window.concessions;
+    points=window.points,concessions=window.concessions,volunteers=window.volunteers,soberDrivers=window.soberDrivers,
+    tkeWeek=window.tkeWeek,nationalEvents=window.nationalEvents,serviceHours=window.serviceHours,goals=window.goals;
 var curTab='dashboard';
 var evTab='upcoming';
 var calMonth=new Date().getMonth();
@@ -599,6 +661,8 @@ var calYear=new Date().getFullYear();
 var finTab='dues';
 var houseTab='chores';
 var concTab='upcoming';
+var volTab='upcoming';
+var soberTab='upcoming';
 var activeThread=null;
 var perfChart=null;
 var chartVis={attendance:true,dues:true,gpa:true,overall:true};
@@ -687,8 +751,8 @@ function gv(id){var el=document.getElementById(id);return el?el.value:'';}
 function gc(id){var el=document.getElementById(id);return el?el.checked:false;}
 
 // NAV
-var pageTitles={dashboard:'Dashboard',members:'Members',events:'Events',finance:'Finances',recruit:'Recruitment',house:'Chapter House',concessions:'Concession Schedule',announce:'Announcements',messages:'Messages',study:'Study Hours',attendance:'Attendance Tracker',points:'Points',blast:'Message Blast'};
-var addLabels={members:'Add Member',events:'Add Event',finance:'Add Record',recruit:'Add Prospect',house:'Add Item',concessions:'Add Shift',announce:'Post Announcement',study:'Log Hours',points:'Award Points'};
+var pageTitles={dashboard:'Dashboard',members:'Members',events:'Events',goals:'Chapter Goals',finance:'Finances',recruit:'Recruitment',house:'Chapter House',concessions:'Concession Schedule',volunteers:'Volunteer Board',sober:'Sober Drivers',tkeweek:'TKE Week',natevents:'National Events',announce:'Announcements',messages:'Messages',study:'Study Hours',service:'Service Hours',attendance:'Attendance Tracker',points:'Points',blast:'Message Blast'};
+var addLabels={members:'Add Member',events:'Add Event',goals:'Add Goal',finance:'Add Record',recruit:'Add Prospect',house:'Add Item',concessions:'Add Shift',volunteers:'Add Opportunity',sober:'Add Driver Slot',tkeweek:'Add Activity',natevents:'Add Event',announce:'Post Announcement',study:'Log Hours',service:'Log Hours',points:'Award Points'};
 function go(tab,el){
   curTab=tab;
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
@@ -711,25 +775,31 @@ function closeSidebar(){
   if(bd)bd.classList.remove('open');
 }
 function updateAddBtn(){
-  var show={members:canEdit(),events:canOfficer(),finance:canEdit(),recruit:canOfficer(),house:canOfficer(),concessions:canOfficer(),announce:canOfficer(),study:true,attendance:false,points:canOfficer(),blast:false};
+  var show={members:canEdit(),events:canOfficer(),goals:canOfficer(),finance:canEdit(),recruit:canOfficer(),house:canOfficer(),concessions:canOfficer(),volunteers:canOfficer(),sober:canOfficer(),tkeweek:canOfficer(),natevents:canOfficer(),announce:canOfficer(),study:true,service:canOfficer(),attendance:false,points:canOfficer(),blast:false};
   document.getElementById('add-btn').style.display=(show[curTab])?'inline-flex':'none';
   document.getElementById('add-lbl').textContent=addLabels[curTab]||'Add';
 }
 function handleAdd(){
-  var h={members:addMemberModal,events:addEventModal,finance:addFinMenu,recruit:addProspectModal,house:addHouseMenu,concessions:addShiftModal,announce:addAnnModal,study:addStudyModal,points:awardPointsModal};
+  var h={members:addMemberModal,events:addEventModal,goals:addGoalModal,finance:addFinMenu,recruit:addProspectModal,house:addHouseMenu,concessions:addShiftModal,volunteers:addVolunteerModal,sober:addSoberModal,tkeweek:addTkeWeekModal,natevents:addNatEventModal,announce:addAnnModal,study:addStudyModal,service:addServiceModal,points:awardPointsModal};
   if(h[curTab])h[curTab]();
 }
 function renderAll(){
   if(curTab==='dashboard')renderDashboard();
   else if(curTab==='members')renderMembers();
   else if(curTab==='events')renderEvents();
+  else if(curTab==='goals')renderGoals();
   else if(curTab==='finance')renderFinance();
   else if(curTab==='recruit')renderRecruit();
   else if(curTab==='house')renderHouse();
   else if(curTab==='concessions')renderConcessions();
+  else if(curTab==='volunteers')renderVolunteers();
+  else if(curTab==='sober')renderSober();
+  else if(curTab==='tkeweek')renderTkeWeek();
+  else if(curTab==='natevents')renderNatEvents();
   else if(curTab==='announce')renderAnnounce();
   else if(curTab==='messages')renderMessages();
   else if(curTab==='study')renderStudy();
+  else if(curTab==='service')renderService();
   else if(curTab==='attendance')renderAttendanceOverview();
   else if(curTab==='points')renderPoints();
   else if(curTab==='blast')renderBlastPreview();
@@ -883,8 +953,8 @@ function viewMember(id){
     '<div><div class="pl">Pledge class</div><div class="pv">'+esc(m.pledgeClass||'—')+'</div></div>'+
     '<div><div class="pl">GPA</div><div class="pv">'+(m.gpa||'—')+'</div></div>'+
     '<div><div class="pl">Attendance</div><div class="pv">'+att.length+'/'+reqEv.length+' mandatory</div></div>'+
-    '<div><div class="pl">Big</div><div class="pv">'+(m.big?esc(m.big):'—')+'</div></div>'+
-    '<div><div class="pl">Littles</div><div class="pv">'+(littles.length?esc(littles.map(function(l){return l.name;}).join(', ')):'—')+'</div></div>'+
+    '<div><div class="pl">Father</div><div class="pv">'+(m.big?esc(m.big):'—')+'</div></div>'+
+    '<div><div class="pl">Sons</div><div class="pv">'+(littles.length?esc(littles.map(function(l){return l.name;}).join(', ')):'—')+'</div></div>'+
     '</div>'+
     (m.notes?'<div class="dv"></div><div class="pl">Notes</div><div style="font-size:13px;margin-top:3px">'+esc(m.notes)+'</div>':'')+
     '<div class="dv"></div><div class="pl" style="margin-bottom:7px">Fines</div>'+finesHtml+
@@ -909,7 +979,7 @@ function memberForm(m){
     '</div><div class="fr2">'+
     '<div class="fr"><label class="fl">Birthday</label><input class="inp" id="fbday" type="date" value="'+(m?m.birthday||'':'')+'"></div>'+
     '<div class="fr"><label class="fl">Pledge class</label><input class="inp" id="fpc" value="'+(m?esc(m.pledgeClass||''):'')+'"></div>'+
-    '</div><div class="fr"><label class="fl">Big (optional)</label><select class="inp" id="fbig"><option value="">— None —</option>'+members.filter(function(x){return !m||x.id!==m.id;}).map(function(x){return '<option'+(m&&m.big===x.name?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select></div>'+
+    '</div><div class="fr"><label class="fl">Father (optional)</label><select class="inp" id="fbig"><option value="">— None —</option>'+members.filter(function(x){return !m||x.id!==m.id;}).map(function(x){return '<option'+(m&&m.big===x.name?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select></div>'+
     '<div class="fr"><label class="fl">Notes</label><textarea class="inp" id="fnotes" rows="2">'+(m?esc(m.notes||''):'')+'</textarea></div>';
 }
 function addMemberModal(){openModal('Add member',memberForm(null)+'<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMember()">Add member</button></div>');}
@@ -1118,7 +1188,9 @@ function renderFinance(){
   var totBud=budget.reduce(function(a,b){return a+b.budgeted;},0);
   var totSpt=budget.reduce(function(a,b){return a+b.spent;},0);
   var openF=fines.filter(function(f){return !f.paid;}).reduce(function(a,f){return a+f.amount;},0);
+  var overallTotal=Math.round(paidAmt+partAmt+txBal);
   document.getElementById('fin-stats').innerHTML=
+    '<div class="sc" style="border-top-color:var(--purple)"><div class="sl">Overall Total</div><div class="sv" style="color:'+(overallTotal>=0?'var(--green)':'var(--red)')+'">$'+overallTotal.toLocaleString()+'</div><div class="ss">Dues collected + transaction balance</div></div>'+
     '<div class="sc"><div class="sl">Dues collected</div><div class="sv">$'+Math.round(paidAmt+partAmt).toLocaleString()+'</div></div>'+
     '<div class="sc"><div class="sl">Outstanding dues</div><div class="sv" style="color:var(--red)">$'+Math.round(outstanding).toLocaleString()+'</div></div>'+
     '<div class="sc"><div class="sl">Transaction balance</div><div class="sv" style="color:'+(txBal>=0?'var(--green)':'var(--red)')+'">$'+Math.round(Math.abs(txBal)).toLocaleString()+'</div></div>'+
@@ -1591,6 +1663,328 @@ function renderAttendanceOverview(){
   }).join('');
 }
 
+// GOALS
+function renderGoals(){
+  var notStarted=goals.filter(function(g){return g.status==='Not Started';}).length;
+  var inProgress=goals.filter(function(g){return g.status==='In Progress';}).length;
+  var complete=goals.filter(function(g){return g.status==='Complete';}).length;
+  document.getElementById('goals-stats').innerHTML=
+    '<div class="sc"><div class="sl">Total goals</div><div class="sv">'+goals.length+'</div></div>'+
+    '<div class="sc"><div class="sl">Not started</div><div class="sv">'+notStarted+'</div></div>'+
+    '<div class="sc"><div class="sl">In progress</div><div class="sv" style="color:var(--amber)">'+inProgress+'</div></div>'+
+    '<div class="sc"><div class="sl">Complete</div><div class="sv" style="color:var(--green)">'+complete+'</div></div>';
+  var list=[].concat(goals).reverse();
+  var el=document.getElementById('goals-list');
+  if(!list.length){el.innerHTML='<div class="empty">No goals set yet</div>';return;}
+  var statusBadge={'Not Started':'b-cold','In Progress':'b-warm','Complete':'b-paid'};
+  el.innerHTML=list.map(function(g){
+    var btns=canOfficer()?'<button class="btn btn-sm" onclick="editGoalModal('+g.id+')"><i class="ti ti-edit"></i></button>':'';
+    return '<div class="ann"><div class="ann-hdr"><div style="display:flex;align-items:center;gap:7px"><span class="ann-title">'+esc(g.title)+'</span><span class="badge '+(statusBadge[g.status]||'b-cold')+'" style="font-size:10px">'+esc(g.status)+'</span></div><div style="display:flex;align-items:center;gap:7px">'+(g.targetDate?'<span style="font-size:11px;color:var(--text2)">Target: '+g.targetDate+'</span>':'')+btns+'</div></div>'+(g.description?'<div class="ann-body">'+esc(g.description)+'</div>':'')+'</div>';
+  }).join('');
+}
+function addGoalModal(){
+  openModal('Add goal',
+    '<div class="fr"><label class="fl">Goal title</label><input class="inp" id="fgt" placeholder="e.g. Raise chapter GPA to 3.3"></div>'+
+    '<div class="fr"><label class="fl">Description</label><textarea class="inp" id="fgd" rows="3"></textarea></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Target date (optional)</label><input class="inp" id="fgdt" type="date"></div>'+
+    '<div class="fr"><label class="fl">Status</label><select class="inp" id="fgs"><option>Not Started</option><option>In Progress</option><option>Complete</option></select></div></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveGoal()">Add goal</button></div>'
+  );
+}
+function saveGoal(){
+  var title=gv('fgt').trim();if(!title){showToast('Goal title required','error');return;}
+  goals.push({id:nid(),title:title,description:gv('fgd'),targetDate:gv('fgdt'),status:gv('fgs')});
+  save('goals',goals);closeModal();renderGoals();
+}
+function editGoalModal(id){
+  var g=goals.find(function(x){return x.id===id;});if(!g)return;
+  openModal('Edit goal',
+    '<div class="fr"><label class="fl">Goal title</label><input class="inp" id="fgt" value="'+esc(g.title)+'"></div>'+
+    '<div class="fr"><label class="fl">Description</label><textarea class="inp" id="fgd" rows="3">'+esc(g.description||'')+'</textarea></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Target date</label><input class="inp" id="fgdt" type="date" value="'+(g.targetDate||'')+'"></div>'+
+    '<div class="fr"><label class="fl">Status</label><select class="inp" id="fgs">'+['Not Started','In Progress','Complete'].map(function(s){return '<option'+(s===g.status?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div></div>'+
+    '<div class="fa"><button class="btn btn-danger" onclick="deleteGoal('+id+')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="updateGoal('+id+')">Save</button></div>'
+  );
+}
+function updateGoal(id){
+  var g=goals.find(function(x){return x.id===id;});if(!g)return;
+  g.title=gv('fgt').trim()||g.title;g.description=gv('fgd');g.targetDate=gv('fgdt');g.status=gv('fgs');
+  save('goals',goals);closeModal();renderGoals();
+}
+function deleteGoal(id){if(!confirm('Delete this goal?'))return;goals=goals.filter(function(x){return x.id!==id;});save('goals',goals);closeModal();renderGoals();}
+
+// Generic shift-board renderer used by Volunteers and Sober Drivers
+function renderShiftBoard(dataArr,tab,statsElId,listElId,emptyMsg,editFn){
+  var upCount=dataArr.filter(function(c){return isUpcoming(c.date);}).length;
+  var unassigned=dataArr.filter(function(c){return isUpcoming(c.date)&&!c.memberId;}).length;
+  document.getElementById(statsElId).innerHTML=
+    '<div class="sc"><div class="sl">Total slots</div><div class="sv">'+dataArr.length+'</div></div>'+
+    '<div class="sc"><div class="sl">Upcoming</div><div class="sv">'+upCount+'</div></div>'+
+    '<div class="sc"><div class="sl">Unassigned</div><div class="sv" style="color:'+(unassigned?'var(--red)':'inherit')+'">'+unassigned+'</div></div>';
+  var list=[].concat(dataArr);
+  if(tab==='upcoming')list=list.filter(function(c){return isUpcoming(c.date);});
+  else if(tab==='past')list=list.filter(function(c){return !isUpcoming(c.date);});
+  if(tab==='past')list.sort(function(a,b){return b.date.localeCompare(a.date);});
+  else list.sort(function(a,b){return a.date.localeCompare(b.date);});
+  var el=document.getElementById(listElId);
+  if(!list.length){el.innerHTML='<div class="empty">'+emptyMsg+'</div>';return;}
+  el.innerHTML=list.map(function(c){
+    var f=fmtDate(c.date);
+    var m=members.find(function(x){return x.id===c.memberId;});
+    var cv=m?avColor(m.id||0):null;
+    var btns=canOfficer()?'<button class="btn btn-sm" onclick="'+editFn+'('+c.id+')"><i class="ti ti-edit"></i></button>':'';
+    return '<div class="ev-card">'+
+      '<div class="ev-date"><div class="ev-month">'+f.month+'</div><div class="ev-day">'+f.day+'</div></div>'+
+      '<div class="ev-info">'+
+        '<div style="display:flex;align-items:center;gap:7px"><div class="ev-name">'+esc(c.label||'Slot')+'</div>'+(!c.memberId?'<span class="badge b-unpaid" style="font-size:10px">Unassigned</span>':'')+'</div>'+
+        '<div class="ev-meta">'+(m?'<span class="rn"><span class="av" style="width:18px;height:18px;font-size:9px;background:'+cv[0]+';color:'+cv[1]+'">'+esc(m.initials||initials(m.name))+'</span>'+esc(m.name)+'</span>':'<span>No one assigned</span>')+(c.notes?'<span>'+esc(c.notes)+'</span>':'')+'</div>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">'+btns+'</div>'+
+      '</div>';
+  }).join('');
+}
+
+// VOLUNTEERS
+function setVolTab(t,el){volTab=t;document.querySelectorAll('#panel-volunteers .tab-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderVolunteers();}
+function renderVolunteers(){renderShiftBoard(volunteers,volTab,'vol-stats','vol-list','No volunteer opportunities posted','editVolunteerModal');}
+function addVolunteerModal(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Add volunteer opportunity',
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="fvd" type="date" value="'+todayStr()+'"></div>'+
+    '<div class="fr"><label class="fl">Activity / role</label><input class="inp" id="fvl" placeholder="e.g. Philanthropy setup"></div></div>'+
+    '<div class="fr"><label class="fl">Assign to</label><select class="inp" id="fvm"><option value="">— Unassigned —</option>'+active.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="fvn" placeholder="Location, time, details..."></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveVolunteer()">Add</button></div>'
+  );
+}
+function saveVolunteer(){
+  var date=gv('fvd');if(!date){showToast('Date required','error');return;}
+  var mid=gv('fvm');
+  volunteers.push({id:nid(),date:date,label:gv('fvl')||'Volunteer slot',memberId:mid?parseInt(mid):null,notes:gv('fvn')});
+  save('volunteers',volunteers);closeModal();renderVolunteers();
+}
+function editVolunteerModal(id){
+  var c=volunteers.find(function(x){return x.id===id;});if(!c)return;
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Edit volunteer opportunity',
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="fvd" type="date" value="'+c.date+'"></div>'+
+    '<div class="fr"><label class="fl">Activity / role</label><input class="inp" id="fvl" value="'+esc(c.label||'')+'"></div></div>'+
+    '<div class="fr"><label class="fl">Assign to</label><select class="inp" id="fvm"><option value="">— Unassigned —</option>'+active.map(function(m){return '<option value="'+m.id+'"'+(c.memberId===m.id?' selected':'')+'>'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="fvn" value="'+esc(c.notes||'')+'"></div>'+
+    '<div class="fa"><button class="btn btn-danger" onclick="deleteVolunteer('+id+')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="updateVolunteer('+id+')">Save</button></div>'
+  );
+}
+function updateVolunteer(id){
+  var c=volunteers.find(function(x){return x.id===id;});if(!c)return;
+  c.date=gv('fvd')||c.date;c.label=gv('fvl');var mid=gv('fvm');c.memberId=mid?parseInt(mid):null;c.notes=gv('fvn');
+  save('volunteers',volunteers);closeModal();renderVolunteers();
+}
+function deleteVolunteer(id){if(!confirm('Delete this opportunity?'))return;volunteers=volunteers.filter(function(x){return x.id!==id;});save('volunteers',volunteers);closeModal();renderVolunteers();}
+
+// SOBER DRIVERS
+function setSoberTab(t,el){soberTab=t;document.querySelectorAll('#panel-sober .tab-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderSober();}
+function renderSober(){renderShiftBoard(soberDrivers,soberTab,'sober-stats','sober-list','No sober driver slots scheduled','editSoberModal');}
+function addSoberModal(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Add sober driver slot',
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="fsd" type="date" value="'+todayStr()+'"></div>'+
+    '<div class="fr"><label class="fl">Event</label><input class="inp" id="fsl" placeholder="e.g. Formal, mixer"></div></div>'+
+    '<div class="fr"><label class="fl">Sober driver</label><select class="inp" id="fsm"><option value="">— Unassigned —</option>'+active.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="fsn" placeholder="Pickup times, route, etc."></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSober()">Add</button></div>'
+  );
+}
+function saveSober(){
+  var date=gv('fsd');if(!date){showToast('Date required','error');return;}
+  var mid=gv('fsm');
+  soberDrivers.push({id:nid(),date:date,label:gv('fsl')||'Sober driver',memberId:mid?parseInt(mid):null,notes:gv('fsn')});
+  save('soberDrivers',soberDrivers);closeModal();renderSober();
+}
+function editSoberModal(id){
+  var c=soberDrivers.find(function(x){return x.id===id;});if(!c)return;
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Edit sober driver slot',
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="fsd" type="date" value="'+c.date+'"></div>'+
+    '<div class="fr"><label class="fl">Event</label><input class="inp" id="fsl" value="'+esc(c.label||'')+'"></div></div>'+
+    '<div class="fr"><label class="fl">Sober driver</label><select class="inp" id="fsm"><option value="">— Unassigned —</option>'+active.map(function(m){return '<option value="'+m.id+'"'+(c.memberId===m.id?' selected':'')+'>'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="fsn" value="'+esc(c.notes||'')+'"></div>'+
+    '<div class="fa"><button class="btn btn-danger" onclick="deleteSober('+id+')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="updateSober('+id+')">Save</button></div>'
+  );
+}
+function updateSober(id){
+  var c=soberDrivers.find(function(x){return x.id===id;});if(!c)return;
+  c.date=gv('fsd')||c.date;c.label=gv('fsl');var mid=gv('fsm');c.memberId=mid?parseInt(mid):null;c.notes=gv('fsn');
+  save('soberDrivers',soberDrivers);closeModal();renderSober();
+}
+function deleteSober(id){if(!confirm('Delete this slot?'))return;soberDrivers=soberDrivers.filter(function(x){return x.id!==id;});save('soberDrivers',soberDrivers);closeModal();renderSober();}
+
+// TKE WEEK
+function renderTkeWeek(){
+  var totalRaised=tkeWeek.reduce(function(a,t){return a+(t.moneyRaised||0);},0);
+  document.getElementById('tkew-stats').innerHTML=
+    '<div class="sc"><div class="sl">Activities</div><div class="sv">'+tkeWeek.length+'</div></div>'+
+    '<div class="sc"><div class="sl">Total raised</div><div class="sv">$'+totalRaised.toLocaleString()+'</div></div>';
+  var list=[].concat(tkeWeek).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var el=document.getElementById('tkew-list');
+  if(!list.length){el.innerHTML='<div class="empty">No TKE Week activities added yet</div>';return;}
+  el.innerHTML=list.map(function(t){
+    var f=fmtDate(t.date);
+    var btns=canOfficer()?'<button class="btn btn-sm" onclick="editTkeWeekModal('+t.id+')"><i class="ti ti-edit"></i></button>':'';
+    return '<div class="ev-card">'+
+      '<div class="ev-date"><div class="ev-month">'+f.month+'</div><div class="ev-day">'+f.day+'</div></div>'+
+      '<div class="ev-info"><div class="ev-name">'+esc(t.name)+'</div><div class="ev-meta"><span>$'+(t.moneyRaised||0).toLocaleString()+' raised</span>'+(t.notes?'<span>'+esc(t.notes)+'</span>':'')+'</div></div>'+
+      '<div>'+btns+'</div></div>';
+  }).join('');
+}
+function addTkeWeekModal(){
+  openModal('Add TKE Week activity',
+    '<div class="fr"><label class="fl">Activity name</label><input class="inp" id="ftwn" placeholder="e.g. Car wash, canned food drive"></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="ftwd" type="date" value="'+todayStr()+'"></div>'+
+    '<div class="fr"><label class="fl">Money raised ($)</label><input class="inp" id="ftwm" type="number" value="0"></div></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="ftwo" placeholder="Location, details..."></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveTkeWeek()">Add</button></div>'
+  );
+}
+function saveTkeWeek(){
+  var name=gv('ftwn').trim();if(!name){showToast('Activity name required','error');return;}
+  tkeWeek.push({id:nid(),name:name,date:gv('ftwd')||todayStr(),moneyRaised:parseFloat(gv('ftwm'))||0,notes:gv('ftwo')});
+  save('tkeWeek',tkeWeek);closeModal();renderTkeWeek();
+}
+function editTkeWeekModal(id){
+  var t=tkeWeek.find(function(x){return x.id===id;});if(!t)return;
+  openModal('Edit TKE Week activity',
+    '<div class="fr"><label class="fl">Activity name</label><input class="inp" id="ftwn" value="'+esc(t.name)+'"></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Date</label><input class="inp" id="ftwd" type="date" value="'+t.date+'"></div>'+
+    '<div class="fr"><label class="fl">Money raised ($)</label><input class="inp" id="ftwm" type="number" value="'+(t.moneyRaised||0)+'"></div></div>'+
+    '<div class="fr"><label class="fl">Notes</label><input class="inp" id="ftwo" value="'+esc(t.notes||'')+'"></div>'+
+    '<div class="fa"><button class="btn btn-danger" onclick="deleteTkeWeek('+id+')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="updateTkeWeek('+id+')">Save</button></div>'
+  );
+}
+function updateTkeWeek(id){
+  var t=tkeWeek.find(function(x){return x.id===id;});if(!t)return;
+  t.name=gv('ftwn').trim()||t.name;t.date=gv('ftwd');t.moneyRaised=parseFloat(gv('ftwm'))||0;t.notes=gv('ftwo');
+  save('tkeWeek',tkeWeek);closeModal();renderTkeWeek();
+}
+function deleteTkeWeek(id){if(!confirm('Delete this activity?'))return;tkeWeek=tkeWeek.filter(function(x){return x.id!==id;});save('tkeWeek',tkeWeek);closeModal();renderTkeWeek();}
+
+// NATIONAL EVENTS (Conclave / RLC / Other)
+function renderNatEvents(){
+  var totalCollected=nationalEvents.reduce(function(a,e){return a+(e.attendees||[]).filter(function(x){return x.paid;}).length*(e.costPerPerson||0);},0);
+  var totalGoing=nationalEvents.reduce(function(a,e){return a+(e.attendees||[]).length;},0);
+  document.getElementById('ne-stats').innerHTML=
+    '<div class="sc"><div class="sl">Events tracked</div><div class="sv">'+nationalEvents.length+'</div></div>'+
+    '<div class="sc"><div class="sl">Total attending (all events)</div><div class="sv">'+totalGoing+'</div></div>'+
+    '<div class="sc"><div class="sl">Total collected</div><div class="sv">$'+totalCollected.toLocaleString()+'</div></div>';
+  var list=[].concat(nationalEvents).sort(function(a,b){return (a.eventDate||'').localeCompare(b.eventDate||'');});
+  var el=document.getElementById('ne-list');
+  if(!list.length){el.innerHTML='<div class="empty">No Conclave, RLC, or other national events added yet</div>';return;}
+  var typeBadge={Conclave:'b-req',RLC:'b-warm',Other:'b-cold'};
+  el.innerHTML=list.map(function(e){
+    var attendees=e.attendees||[];
+    var paidCount=attendees.filter(function(a){return a.paid;}).length;
+    var collected=paidCount*(e.costPerPerson||0);
+    var btns=canOfficer()?'<button class="btn btn-sm" onclick="editNatEventModal('+e.id+')"><i class="ti ti-edit"></i></button>':'';
+    var attRows=attendees.map(function(a){
+      var m=members.find(function(x){return x.id===a.memberId;});
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:12px"><span>'+(m?esc(m.name):'Unknown')+'</span><span class="badge '+(a.paid?'b-paid':'b-unpaid')+'" style="font-size:10px">'+(a.paid?'Paid':'Unpaid')+'</span></div>';
+    }).join('')||'<div style="font-size:12px;color:var(--text3)">No one signed up yet</div>';
+    return '<div class="ann"><div class="ann-hdr"><div style="display:flex;align-items:center;gap:7px"><span class="ann-title">'+esc(e.name)+'</span><span class="badge '+(typeBadge[e.type]||'b-cold')+'" style="font-size:10px">'+esc(e.type)+'</span></div><div style="display:flex;align-items:center;gap:7px">'+btns+'</div></div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">'+(e.eventDate?'Event: '+e.eventDate+' &middot; ':'')+(e.deadline?'Deadline to register: '+e.deadline+' &middot; ':'')+(e.costPerPerson?'$'+e.costPerPerson+'/person':'')+'</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px"><strong>'+attendees.length+'</strong> attending &middot; <strong>$'+collected.toLocaleString()+'</strong> collected</div>'+
+      '<div class="dv"></div>'+attRows+
+      '</div>';
+  }).join('');
+}
+function addNatEventModal(){
+  openModal('Add national/regional event',
+    '<div class="fr2"><div class="fr"><label class="fl">Type</label><select class="inp" id="fnet"><option>Conclave</option><option>RLC</option><option>Other</option></select></div>'+
+    '<div class="fr"><label class="fl">Name</label><input class="inp" id="fnen" placeholder="e.g. 2027 Conclave"></div></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Event date</label><input class="inp" id="fned" type="date"></div>'+
+    '<div class="fr"><label class="fl">Registration deadline</label><input class="inp" id="fnedl" type="date"></div></div>'+
+    '<div class="fr"><label class="fl">Cost per person ($)</label><input class="inp" id="fnec" type="number" value="0"></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveNatEvent()">Add</button></div>'
+  );
+}
+function saveNatEvent(){
+  var name=gv('fnen').trim();if(!name){showToast('Event name required','error');return;}
+  nationalEvents.push({id:nid(),type:gv('fnet'),name:name,eventDate:gv('fned'),deadline:gv('fnedl'),costPerPerson:parseFloat(gv('fnec'))||0,attendees:[]});
+  save('nationalEvents',nationalEvents);closeModal();renderNatEvents();
+}
+function editNatEventModal(id){
+  var e=nationalEvents.find(function(x){return x.id===id;});if(!e)return;
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  var attendees=e.attendees||[];
+  var attCheckboxes=active.map(function(m){
+    var att=attendees.find(function(a){return a.memberId===m.id;});
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border)">'+
+      '<label style="display:flex;align-items:center;gap:7px;font-size:13px;flex:1"><input type="checkbox" class="ne-going" value="'+m.id+'"'+(att?' checked':'')+' style="width:auto">'+esc(m.name)+'</label>'+
+      '<label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" class="ne-paid" data-mid="'+m.id+'"'+(att&&att.paid?' checked':'')+' style="width:auto">Paid</label>'+
+      '</div>';
+  }).join('');
+  openModal('Edit national/regional event',
+    '<div class="fr2"><div class="fr"><label class="fl">Type</label><select class="inp" id="fnet">'+['Conclave','RLC','Other'].map(function(t){return '<option'+(t===e.type?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr"><label class="fl">Name</label><input class="inp" id="fnen" value="'+esc(e.name)+'"></div></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Event date</label><input class="inp" id="fned" type="date" value="'+(e.eventDate||'')+'"></div>'+
+    '<div class="fr"><label class="fl">Registration deadline</label><input class="inp" id="fnedl" type="date" value="'+(e.deadline||'')+'"></div></div>'+
+    '<div class="fr"><label class="fl">Cost per person ($)</label><input class="inp" id="fnec" type="number" value="'+(e.costPerPerson||0)+'"></div>'+
+    '<div class="fr"><label class="fl">Who\'s going</label><div style="max-height:220px;overflow-y:auto" id="ne-attendee-list">'+attCheckboxes+'</div></div>'+
+    '<div class="fa"><button class="btn btn-danger" onclick="deleteNatEvent('+id+')">Delete</button><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="updateNatEvent('+id+')">Save</button></div>'
+  );
+}
+function updateNatEvent(id){
+  var e=nationalEvents.find(function(x){return x.id===id;});if(!e)return;
+  e.type=gv('fnet');e.name=gv('fnen').trim()||e.name;e.eventDate=gv('fned');e.deadline=gv('fnedl');e.costPerPerson=parseFloat(gv('fnec'))||0;
+  var goingBoxes=document.querySelectorAll('.ne-going');
+  var newAttendees=[];
+  goingBoxes.forEach(function(cb){
+    if(cb.checked){
+      var mid=parseInt(cb.value);
+      var paidBox=document.querySelector('.ne-paid[data-mid="'+mid+'"]');
+      newAttendees.push({memberId:mid,paid:paidBox?paidBox.checked:false});
+    }
+  });
+  e.attendees=newAttendees;
+  save('nationalEvents',nationalEvents);closeModal();renderNatEvents();
+}
+function deleteNatEvent(id){if(!confirm('Delete this event?'))return;nationalEvents=nationalEvents.filter(function(x){return x.id!==id;});save('nationalEvents',nationalEvents);closeModal();renderNatEvents();}
+
+// SERVICE HOURS
+function renderService(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  var totalHours=serviceHours.reduce(function(a,s){return a+s.hours;},0);
+  document.getElementById('service-stats').innerHTML=
+    '<div class="sc"><div class="sl">Total service hours</div><div class="sv">'+totalHours+'</div></div>'+
+    '<div class="sc"><div class="sl">Contributors</div><div class="sv">'+active.filter(function(m){return serviceHours.some(function(s){return s.memberId===m.id;});}).length+'</div></div>';
+  var sorted=[].concat(active).sort(function(a,b){
+    var ha=serviceHours.filter(function(s){return s.memberId===a.id;}).reduce(function(x,s){return x+s.hours;},0);
+    var hb=serviceHours.filter(function(s){return s.memberId===b.id;}).reduce(function(x,s){return x+s.hours;},0);
+    return hb-ha;
+  });
+  var body=document.getElementById('service-body');
+  if(!sorted.length){body.innerHTML='<tr><td colspan="3" class="empty">No members</td></tr>';return;}
+  body.innerHTML=sorted.map(function(m,i){
+    var hrs=serviceHours.filter(function(s){return s.memberId===m.id;}).reduce(function(a,s){return a+s.hours;},0);
+    var cv=avColor(m.id||0);
+    return '<tr><td>'+(i+1)+'</td><td><div class="rn"><div class="av" style="background:'+cv[0]+';color:'+cv[1]+'">'+esc(m.initials||initials(m.name))+'</div>'+esc(m.name)+'</div></td><td><strong>'+hrs+'</strong> hrs</td></tr>';
+  }).join('');
+}
+function addServiceModal(){
+  var active=members.filter(function(m){return m.status!=='Alumni';});
+  openModal('Log service hours',
+    '<div class="fr"><label class="fl">Member</label><select class="inp" id="svmem">'+active.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('')+'</select></div>'+
+    '<div class="fr2"><div class="fr"><label class="fl">Hours</label><input class="inp" id="svhrs" type="number" min="0.5" step="0.5" value="2"></div>'+
+    '<div class="fr"><label class="fl">Date</label><input class="inp" id="svdate" type="date" value="'+todayStr()+'"></div></div>'+
+    '<div class="fr"><label class="fl">Notes (optional)</label><input class="inp" id="svnotes" placeholder="Philanthropy event, volunteer work..."></div>'+
+    '<div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveServiceHours()">Log hours</button></div>'
+  );
+}
+function saveServiceHours(){
+  var hrs=parseFloat(gv('svhrs'))||0;
+  if(hrs<=0){showToast('Enter valid hours','error');return;}
+  serviceHours.push({id:nid(),memberId:parseInt(gv('svmem')),hours:hrs,date:gv('svdate'),notes:gv('svnotes')});
+  save('serviceHours',serviceHours);closeModal();renderService();
+}
+
 // POINTS
 function autoEventPoints(mid){
   var reqEv=events.filter(function(e){return e.required&&!isUpcoming(e.date);});
@@ -1758,7 +2152,7 @@ function downloadFile(filename,content,mime){
   URL.revokeObjectURL(url);
 }
 function exportBackupJSON(){
-  var data={members:members,events:events,dues:dues,transactions:transactions,budget:budget,fines:fines,prospects:prospects,announcements:announcements,chores:chores,maintenance:maintenance,studyHours:studyHours,points:points,concessions:concessions,settings:settings};
+  var data={members:members,events:events,dues:dues,transactions:transactions,budget:budget,fines:fines,prospects:prospects,announcements:announcements,chores:chores,maintenance:maintenance,studyHours:studyHours,points:points,concessions:concessions,volunteers:volunteers,soberDrivers:soberDrivers,tkeWeek:tkeWeek,nationalEvents:nationalEvents,serviceHours:serviceHours,goals:goals,settings:settings};
   downloadFile((settings.chapterName||'chapter').replace(/[^a-z0-9]/gi,'-')+'-backup-'+todayStr()+'.json',JSON.stringify(data,null,2),'application/json');
 }
 function csvEscape(v){
@@ -1767,8 +2161,8 @@ function csvEscape(v){
   return v;
 }
 function exportMembersCSV(){
-  var headers=['Name','Year','Major','Role','Status','GPA','Phone','Email','Birthday','Pledge Class'];
-  var rows=members.map(function(m){return [m.name,m.year,m.major,m.role,m.status,m.gpa,m.phone,m.email,m.birthday,m.pledgeClass].map(csvEscape).join(',');});
+  var headers=['Name','Year','Major','Role','Status','GPA','Phone','Email','Birthday','Pledge Class','Father'];
+  var rows=members.map(function(m){return [m.name,m.year,m.major,m.role,m.status,m.gpa,m.phone,m.email,m.birthday,m.pledgeClass,m.big].map(csvEscape).join(',');});
   downloadFile('members-'+todayStr()+'.csv',[headers.join(',')].concat(rows).join('\n'),'text/csv');
 }
 function printRoster(){
